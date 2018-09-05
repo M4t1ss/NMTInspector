@@ -15,7 +15,7 @@ class Classifier:
 
     def __init__(self, data,model_file,load_model,store_model,input_type,output):
         self.data = data
-        self.epochs = 10
+        self.epochs = 200
         self.model_file = model_file
         self.load_model = load_model
         self.store_model = store_model
@@ -33,11 +33,11 @@ class Classifier:
         self.prepareData()
         if not self.load_model:
             self.buildModel();
-            self.trainloader = utils.data.DataLoader(self.dataset, batch_size=16,
+            self.trainloader = utils.data.DataLoader(self.dataset, batch_size=64,
                                                      shuffle=True)
             self.train()
         self.model.eval()
-        self.trainloader = utils.data.DataLoader(self.dataset, batch_size=16,
+        self.trainloader = utils.data.DataLoader(self.dataset, batch_size=64,
                                                  shuffle=False)
         self.predict()
         if self.store_model:
@@ -87,8 +87,9 @@ class Classifier:
                         self.mapping[l] = c
                         self.labels.append(l)
 
-                    samples.append(self.data.sentences[i].data[j].tolist())
+                    # samples.append(self.data.sentences[i].data[j].tolist())
                     ls.append(c)
+                samples.append(self.data.sentences[i].data.tolist())
             elif(self.input_type == "sentence"):
                 d = zeros(self.data.sentences[i].data[0].shape)
                 for j in range(len(self.data.sentences[i].words)):
@@ -110,7 +111,7 @@ class Classifier:
         self.dataset = utils.data.TensorDataset(FloatTensor(samples), IntTensor(ls))
 
     def buildModel(self):
-        self.inputSize = self.data.sentences[0].data[0].size
+        self.inputSize = self.data.sentences[0].data.size
         self.outputSize = len(self.mapping)
         self.model = nn.Sequential(nn.Linear(self.inputSize,self.outputSize))
         self.criterion = nn.CrossEntropyLoss()
