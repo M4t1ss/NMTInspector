@@ -23,7 +23,9 @@ import inspector.Autoencoder
 import json, numpy as np
 from io import open, StringIO
 import representation.Dataset
-
+import scipy.ndimage
+import warnings
+warnings.filterwarnings('ignore', '.*output shape of zoom.*')
 
 
 logging.basicConfig(format='%(message)s')
@@ -80,7 +82,7 @@ def main():
                         help="""Model that should be analyzed""")
 
     parser.add_argument('-model_type', type=str, default="",
-                        choices=['OpenNMT','vivisectONMT','vivisectSockeye','attention'],
+                        choices=['OpenNMT','vivisectONMT','vivisectSockeye','attentionPad','attentionZoom'],
                         help="""Framework used to train the model""")
 
 
@@ -116,8 +118,10 @@ def main():
             exit(-1);
         elif(opt.model_type == "OpenNMT"):
             data = toolkits.ONMT.generate(opt.source_test_data,opt.model,opt.representation,opt.gpuid)
-        elif (opt.model_type == "attention"):
-            data = readNematus(opt.source_test_data)
+        elif (opt.model_type == "attentionPad"):
+            data = readNematus(opt.source_test_data, 'pad')
+        elif (opt.model_type == "attentionZoom"):
+            data = readNematus(opt.source_test_data, 'zoom')
         elif (opt.model_type == "vivisectONMT"):
             data = toolkits.vivisectONMT.generate(opt.source_test_data, opt.target_test_data, opt.model,
                                                   opt.representation, opt.label_representation,opt.gpuid)
@@ -186,19 +190,32 @@ def main():
     #show result
         
 
-def readNematus(filename):
+def readNematus(filename, type='pad'):
     with open(filename, 'r', encoding='utf-8') as fh:
         sentences = []
         data = representation.Dataset.Dataset("alignments")
         
+        maxSize = 220
         wasNew = True
         aliTXT = ''
+        
         for line in fh:
             if wasNew:
                 if len(aliTXT) > 0:
                     c = StringIO(aliTXT)
                     ali = np.loadtxt(c)
                     ali = ali.transpose()
+                    
+                    s=ali.shape
+                    
+                    #Pad with 0s
+                    if type=='pad':
+                        ali = np.pad(ali, ((0,maxSize-s[0]),(0,maxSize-s[1])), 'constant')
+                    
+                    #Zoom
+                    if type=='zoom':
+                        ali = scipy.ndimage.zoom(ali, [1.0*maxSize/t for t in s])
+                    
                     flat = ali.ravel()
                     mySent = representation.Dataset.Sentence(flat)
                     mySent.words = ['']
@@ -214,6 +231,17 @@ def readNematus(filename):
             c = StringIO(aliTXT)
             ali = np.loadtxt(c)
             ali = ali.transpose()
+            
+            s=ali.shape
+            
+            #Pad with 0s
+            if type=='pad':
+                ali = np.pad(ali, ((0,maxSize-s[0]),(0,maxSize-s[1])), 'constant')
+            
+            #Zoom
+            if type=='zoom':
+                ali = scipy.ndimage.zoom(ali, [1.0*maxSize/t for t in s])
+                    
             flat = ali.ravel()
             mySent = representation.Dataset.Sentence(flat)
             mySent.words = ['']
